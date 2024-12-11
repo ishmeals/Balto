@@ -41,7 +41,7 @@ class Balto(gym.Env):
     metadata = {'render_modes': ['human'], 'render_fps': 30}
 
     def done(self):
-        return self.goal == [self.G[p] for p in self.order]
+        return self.steps >= 1000 or self.goal == [self.G[p] for p in self.order]
 
     def encode(self):
         i = encode([self.G[p] for p in self.order])
@@ -80,20 +80,19 @@ class Balto(gym.Env):
         self.outlen = int(ceil(log2(factorial(self.SIZE))))
         # Example for using image as input (channel-first; channel-last also works):
         self.observation_space = spaces.MultiDiscrete([2]* self.outlen)
+        # self.observation_space = spaces.MultiDiscrete([self.SIZE]* self.SIZE)
 
     def cube_distance(self, a, b):
-        a = (*a, -a[0] - a[1])
-        b = (*b, -b[0] - b[1])
-        vec = (a[0] - b[0], a[1] - b[1], a[2] - b[2])
-        return max(map(abs, vec))
+        return max(map(abs,(a[0]-b[0], a[1]-b[1], a[0]+a[1]-b[0]-b[1])))
 
     def cost(self):
-        return sum(self.cube_distance(p, self.lookup[i]) for p,i in self.G.items()) + self.steps/1000000 + 1
+        return sum(self.cube_distance(p, self.lookup[i]) for p,i in self.G.items() if i) + self.steps/1000000 + 1
 
     def step(self, action):
         self.steps += 1
         # self.hist.append(action)
 
+        # assert set(self.G.values()) == set(range(self.SIZE))
         group = [p for p in self.G if self.G[p] == 0]
         if action % 6 == 0:
             group.append((group[0][0]+1, group[0][1]-1))
@@ -141,13 +140,16 @@ class Balto(gym.Env):
         self.c = self.cost()
         return self.encode(), d, self.done(), False, {'cost': self.c}
 
-    def reset(self, a=None, seed=None, options=None):
-        # super().reset(seed=seed)
-        assert seed is None and options is None
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
+        # assert seed is None and options is None
 
-        if not a:
+        if not options:
             # a = range(self.SIZE)
             a = np.random.permutation(self.SIZE)
+        else:
+            a = options['a']
+            assert len(a) == self.SIZE
 
         self.G = {o: b for (o, b) in zip(self.order,a)}
         self.c = self.cost()
@@ -162,9 +164,22 @@ class Balto(gym.Env):
     #     ...
 
 # env = Balto(3, render_mode="human")
-# env.reset(list(range(19)))
-# print(env.G)
-# print(env.cost())
+# env.reset([2,6,1,9,17,0,5,16,10,13,18,7,12,4,15,3,14,8,11])
 # env.step(0)
-# print(env.G)
-# print(env.cost())
+# env.step(9)
+# env.step(4)
+# print([env.G[p] for p in env.order])
+
+# env = Balto(2, render_mode="human")
+# env.reset([1,5,4,3,2,0,6])
+# env.render()
+# print([(i, env.cube_distance(p, env.lookup[i])) for p,i in env.G.items()])
+
+# 61
+# env = Balto(3, render_mode="human")
+# env.reset([15,13,8,
+#         14,17,9,16,
+#         10,18,0,4,12,
+#         3,7,2,5,
+#         11,6,1])
+# env.render()
