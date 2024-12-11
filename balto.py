@@ -138,9 +138,9 @@ class Balto(gym.Env):
 
         d = self.c - self.cost()
         self.c = self.cost()
-        return self.encode(), d, self.done(), False, {'cost': self.c}
+        return self.encode(), -self.c, self.done(), False, {'cost': self.c}
 
-    def reset(self, seed=None, options=None):
+    def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
         # assert seed is None and options is None
 
